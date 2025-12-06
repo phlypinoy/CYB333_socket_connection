@@ -111,7 +111,7 @@ def run_client(host: str = HOST, port: int = PORT) -> None:
     sock = create_client_socket()
     try:
         if not connect_to_server(sock, host, port):
-            return  # connection failed, exit cleanly
+            return  # connection failed, finally will close the socket
 
         client_message_loop(sock)
     finally:
@@ -119,7 +119,8 @@ def run_client(host: str = HOST, port: int = PORT) -> None:
             sock.close()
         except OSError:
             pass
-        print("[*] Client socket closed. Client shut down cleanly.")
+    
+    print("[*] Client socket closed. Client shut down cleanly.")
 
 
 if __name__ == "__main__":
