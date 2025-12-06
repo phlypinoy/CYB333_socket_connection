@@ -43,7 +43,8 @@ def start_server() -> None:
 
         # Use context manager so the connection is closed automatically
         with conn:
-            print(f"[+] Connection established from {addr}")
+            ip, port = addr
+            print(f"[+] Connection established with {ip}:{port}")
 
             while True:
                 try:
