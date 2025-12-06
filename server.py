@@ -10,11 +10,31 @@ Simple TCP server for CYB333 socket assignment.
 
 import socket
 import sys
+import time
+from datetime import datetime
 
 HOST = "127.0.0.1"   # Loopback address (localhost)
 PORT = 5000          # Arbitrary non-privileged port
 BUFFER_SIZE = 1024   # How many bytes to read at a time
 ENCODING = "utf-8"   # String encoding
+SERVER_START_TIME = time.time()  # Track server start time for uptime
+
+# Command descriptions - single source of truth
+COMMANDS = [
+    ("time", "Get the current server time"),
+    ("uptime", "Get server uptime"),
+    ("help", "Display all commands"),
+    ("exit", "Disconnect from the server"),
+    ("(any text)", "Echo message back to you"),
+]
+
+
+def get_commands_text(prefix: str = "") -> str:
+    """Generate formatted command list with given prefix."""
+    lines = [prefix] if prefix else []
+    for cmd, desc in COMMANDS:
+        lines.append(f"{cmd:<10}: {desc}")
+    return "\n".join(lines)
 
 
 def receive_message(conn: socket.socket) -> str | None:
@@ -42,7 +62,7 @@ def send_response(conn: socket.socket, response: str) -> bool:
     """
     try:
         conn.sendall((response + "\n").encode(ENCODING))
-        print(f"[>] Sent to client: {response}")
+        print(f"[>] [Sent to client] {response}")
         return True
     except BrokenPipeError:
         print("[!] Failed to send data. Client may have disconnected.")
@@ -54,7 +74,7 @@ def handle_message(conn: socket.socket, message: str) -> bool:
     Process client message and send appropriate response.
     Returns False if client requested exit or connection failed, True to continue.
     """
-    print(f"[<] Received from client: {message}")
+    print(f"[<] [Received from client] {message}")
 
     if message.lower() == "exit":
         goodbye = "Goodbye from server."
@@ -62,7 +82,29 @@ def handle_message(conn: socket.socket, message: str) -> bool:
         print("[*] Client requested to close the connection. Shutting down.")
         return False
 
-    response = f"Server received: {message}"
+    if message.lower() == "help":
+        help_text = get_commands_text("\n--- Available Commands ---")
+        if not send_response(conn, help_text):
+            return False
+        return True
+
+    if message.lower() == "time":
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        response = f"[Current server time] {current_time}"
+        if not send_response(conn, response):
+            return False
+        return True
+
+    if message.lower() == "uptime":
+        uptime_seconds = int(time.time() - SERVER_START_TIME)
+        hours, remainder = divmod(uptime_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        response = f"[Server uptime] {hours}h {minutes}m {seconds}s"
+        if not send_response(conn, response):
+            return False
+        return True
+
+    response = f"Server received \"{message}\""
     if not send_response(conn, response):
         return False
 
@@ -105,6 +147,7 @@ def start_server() -> None:
         try:
             # Block until a client connects
             conn, addr = server_sock.accept()
+            query_list(conn)
         except KeyboardInterrupt:
             print("\n[!] Server interrupted before accepting a connection. Shutting down.")
             return
@@ -115,6 +158,13 @@ def start_server() -> None:
 
         print("[*] Server shut down cleanly.")
 
+def query_list(conn: socket.socket) -> None:
+    """
+    Send welcome message and list of available commands to the client.
+    """
+    commands_list = get_commands_text("Available commands")
+    welcome_message = f"\nWelcome to the server!\n----------------------\n{commands_list}\n----------------------\n"
+    conn.sendall(welcome_message.encode(ENCODING))
 
 if __name__ == "__main__":
     try:

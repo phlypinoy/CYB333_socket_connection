@@ -52,13 +52,18 @@ def client_message_loop(sock: socket.socket) -> None:
     """
     Main loop: read user input, send to server, print responses.
     """
-    print("Type messages and press Enter to send.")
-    print('Type "exit" to close the connection cleanly.\n')
+    # Read welcome message and commands from server
+    try:
+        welcome = sock.recv(BUFFER_SIZE)
+        if welcome:
+            print(f"{welcome.decode(ENCODING)}")
+    except OSError:
+        pass
 
     try:
         while True:
             try:
-                message = input("You: ")
+                message = input("Client: ")
             except EOFError:
                 # e.g., Ctrl+D
                 print("\n[!] EOF received. Closing client.")
